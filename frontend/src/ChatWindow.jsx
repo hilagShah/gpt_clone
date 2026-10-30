@@ -5,46 +5,85 @@ import { useContext, useState, useEffect } from "react";
 import { ScaleLoader } from "react-spinners";
 
 function ChatWindow() {
-    const {prompt, setPrompt, reply, setReply, currThreadId, prevChats, setPrevChats} = useContext(MyContext);
+    const {
+        prompt, setPrompt,
+        reply, setReply,
+        currThreadId,
+        prevChats, setPrevChats,
+        newChat, setNewChat,
+        allThreads, setAllThreads
+    } = useContext(MyContext);
     const [loading, setLoading] = useState(false);
+
     const getReply = async () => {
+        const messageToSend = prompt.trim();
+        if (!messageToSend || loading) return;
+
+        // 1. Immediately clear prompt input
+        setPrompt("");
+
+        // 2. Switch off newChat screen
+        setNewChat(false);
+
+        // 3. Immediately render user message in realtime
+        setPrevChats(prev => [
+            ...prev,
+            { role: "user", content: messageToSend }
+        ]);
+
+        // 4. Set loading state
         setLoading(true);
+
+        // 5. If this thread is new, optimistically add to sidebar threads
+        const threadExists = allThreads.some(t => t.threadId === currThreadId);
+        if (!threadExists) {
+            setAllThreads(prev => [
+                { threadId: currThreadId, title: messageToSend },
+                ...prev
+            ]);
+        }
+
         const options = {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
-                message: prompt,
+                message: messageToSend,
                 threadId: currThreadId
-            })
+            }),
+            credentials: "include"
         };
 
         try {
             const response = await fetch("http://localhost:8000/api/chat", options);
             const resF = await response.json();
-            console.log(resF.reply);
-            setReply(resF.reply);
+            
+            if (response.ok && resF.reply) {
+                setReply(resF.reply);
+                setPrevChats(prev => [
+                    ...prev,
+                    { role: "assistant", content: resF.reply }
+                ]);
+            } else {
+                setPrevChats(prev => [
+                    ...prev,
+                    { role: "assistant", content: resF.error || "Sorry, failed to get a response." }
+                ]);
+            }
         }
         catch(err) {
-            console.log(err);
+            console.error(err);
+            setPrevChats(prev => [
+                ...prev,
+                { role: "assistant", content: "Network error. Please try again." }
+            ]);
         }
-    }
+        finally {
+            setLoading(false);
+        }
+    };
 
-    useEffect(() => {
-        if(prompt && reply)  {
-            setPrevChats(prevChats => (
-                [...prevChats, {
-                    role: "user",
-                    content: prompt
-                }, {
-                    role: "assistant",
-                    content: reply
-                }]
-            ));
-        }
-        setPrompt("");
-    }, [reply]);
     return (
             <div className="chatWindow">
                 <div className="navbar">
@@ -53,7 +92,7 @@ function ChatWindow() {
                         <span className="userIcon"><i className="fa-solid fa-user"></i></span>
                     </div>
                 </div>
-                <Chat setLoading={ setLoading }></Chat>
+                <Chat loading={loading}></Chat>
                 {/* <ScaleLoader color="#fff" loading={loading}></ScaleLoader> */}
                 <div className="chatInput">
                     <div className="inputBox">

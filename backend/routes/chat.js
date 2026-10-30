@@ -1,12 +1,13 @@
 import express from "express";
 import Thread from "../models/thread.js";
 import getGeminiAIAPIResponse from "../utils/geminiai.js";
+import { protect } from "../middleware/auth.js";
 
 const router = express.Router();
 
-router.get("/thread", async(req, res) => {
+router.get("/thread", protect, async(req, res) => {
     try {
-        const threads = await Thread.find({}).sort({updatedAt: -1});
+        const threads = await Thread.find({ userId: req.user.id }).sort({updatedAt: -1});
         res.json(threads);
     }
     catch(err) {
@@ -15,27 +16,30 @@ router.get("/thread", async(req, res) => {
     }
 });
 
-router.get("/thread/:threadId", async(req, res) => {
+router.get("/thread/:threadId", protect, async(req, res) => {
     const { threadId } = req.params;
 
     try {
-        const thread = await Thread.findOne({threadId});
+        const thread = await Thread.findOne({ threadId, userId: req.user.id });
+        if (!thread) {
+            return res.status(404).json({ error: "Thread not found" });
+        }
         res.json(thread.messages);
     }
     catch(err) {
         console.log(err);
         res.status(500).json({error: "Failed to fetch thread"});
     }
-})
+});
 
-router.delete("/thread/:threadId", async (req, res) => {
+router.delete("/thread/:threadId", protect, async (req, res) => {
     const { threadId } = req.params;
 
     try {
-        const deleteThread = await Thread.findOneAndDelete({threadId});
+        const deleteThread = await Thread.findOneAndDelete({ threadId, userId: req.user.id });
 
         if(!deleteThread) {
-            res.status(404).json({error: "Thread not found"});
+            return res.status(404).json({error: "Thread not found"});
         }
         console.log("Thread deleted !");
         res.status(200).json({success: "Thread deleted successfully."});
@@ -46,18 +50,19 @@ router.delete("/thread/:threadId", async (req, res) => {
     }
 });
 
-router.post("/chat", async(req, res) => {
+router.post("/chat", protect, async(req, res) => {
     const { threadId, message } = req.body;
 
     if(!threadId || !message) {
-        res.status(400).json({error: "missing fields required"});
+        return res.status(400).json({error: "missing fields required"});
     }
 
     try {
-        let thread = await Thread.findOne({threadId});
+        let thread = await Thread.findOne({ threadId, userId: req.user.id });
 
         if(!thread) {
             thread = new Thread({
+                userId: req.user.id,
                 threadId,
                 title : message,
                 messages : [{role: "user", content: message}]
@@ -68,22 +73,22 @@ router.post("/chat", async(req, res) => {
         }
 
         try {
-    const assistantReply = await getGeminiAIAPIResponse(message);
+            const assistantReply = await getGeminiAIAPIResponse(message);
 
-    thread.messages.push({
-        role: "assistant",
-        content: assistantReply,
-    });
+            thread.messages.push({
+                role: "assistant",
+                content: assistantReply,
+            });
 
-    await thread.save();
+            await thread.save();
 
-    res.json({ reply: assistantReply });
+            res.json({ reply: assistantReply });
 
-} catch (err) {
-    return res.status(503).json({
-        error: err.message
-    });
-}
+        } catch (err) {
+            return res.status(503).json({
+                error: err.message
+            });
+        }
     }
     catch(err) {
         console.log(err);

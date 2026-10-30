@@ -58,11 +58,42 @@ button:hover {
 }
 
 .sign {
-    padding: 10px;
+    padding: 15px 10px;
     margin: 10px;
     font-size: 14px;
-    text-align: center;
-    border-top: solid 0.25px rgba(255, 255, 255, 0.5);
+    text-align: left;
+    border-top: solid 0.25px rgba(255, 255, 255, 0.15);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.sign p {
+    margin: 0;
+    color: #e3e3e3;
+    font-weight: 500;
+}
+
+.logout-btn {
+    width: 100%;
+    margin: 0;
+    padding: 10px;
+    border-radius: 8px;
+    background-color: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #fca5a5;
+    font-weight: 600;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.logout-btn:hover {
+    background-color: rgba(239, 68, 68, 0.25) !important;
+    border-color: rgba(239, 68, 68, 0.45);
 }
 
 .fa-trash {

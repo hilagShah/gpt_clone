@@ -2,28 +2,31 @@ import "./Sidebar.css";
 import { MyContext } from "./MyContext";
 import { useContext, useEffect } from "react";
 import {v1 as uuidv1} from "uuid";
+import { useAuth } from "./AuthContext";
 
 function Sidebar() {
     const {allThreads, setAllThreads, currThreadId, setNewChat, setPrompt, setReply, setCurrThreadId, setPrevChats} = useContext(MyContext);
+    const { user, logout } = useAuth();
+
     const getAllThreads = async () => {
         try {
-            const response = await fetch("http://localhost:8000/api/thread");
+            const response = await fetch("http://localhost:8000/api/thread", {
+                credentials: "include"
+            });
             const res = await response.json();
-            // console.log(res);
-            const filteredData = res.map(thread => ({
-                threadId: thread.threadId, 
-                title: thread.title
-            }));
-            // console.log(filteredData);
-            setAllThreads(filteredData);
+            if (response.ok) {
+                const filteredData = res.map(thread => ({
+                    threadId: thread.threadId, 
+                    title: thread.title
+                }));
+                setAllThreads(filteredData);
+            }
         }
         catch(err) {
             console.log(err);
         }
     }
-    // useEffect(() => {
-    //     console.log("Sidebar allThreads:", allThreads);
-    // }, [allThreads]);
+
     useEffect(() => {
         getAllThreads();
     }, [currThreadId]);
@@ -38,10 +41,11 @@ function Sidebar() {
 
     const changeThread = async (newThreadId) => {
         setCurrThreadId(newThreadId);
-
         setReply(null);
         try {
-            const response = await fetch(`http://localhost:8000/api/thread/${newThreadId}`);
+            const response = await fetch(`http://localhost:8000/api/thread/${newThreadId}`, {
+                credentials: "include"
+            });
             
             const res = await response.json();
             console.log(res);
@@ -55,7 +59,10 @@ function Sidebar() {
 
     const deleteThread = async (threadId) => {
         try {
-            const response = await fetch(`http://localhost:8000/api/thread/${threadId}`, {method: "DELETE"});
+            const response = await fetch(`http://localhost:8000/api/thread/${threadId}`, {
+                method: "DELETE",
+                credentials: "include"
+            });
             const res = await response.json();
             console.log(res);
 
@@ -85,11 +92,13 @@ function Sidebar() {
                         }}></i></li>
                     ))
                 }
-                {/* <li key={1}>{allThreads?.[0]?.title} </li> */}
             </ul>
 
             <div className="sign">
-                <p>hello</p>
+                <p>Hello, <strong>{user?.username}</strong></p>
+                <button className="logout-btn" onClick={logout}>
+                    Sign Out
+                </button>
             </div>
         </div>
     )
